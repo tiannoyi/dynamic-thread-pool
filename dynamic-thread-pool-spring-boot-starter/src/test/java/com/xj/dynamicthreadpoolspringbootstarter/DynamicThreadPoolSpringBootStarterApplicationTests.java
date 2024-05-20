@@ -1,10 +1,10 @@
-package com.xj.dynamicthreadpool;
+package com.xj.dynamicthreadpoolspringbootstarter;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class DynamicThreadPoolApplicationTests {
+class DynamicThreadPoolSpringBootStarterApplicationTests {
 
     @Test
     void contextLoads() {
