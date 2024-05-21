@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * @author : xiongjun
  * @date : 2024/5/20 16:29
+ * @description 动态线程池配置
  */
 @ConfigurationProperties(prefix = "dynamic.thread.pool.config", ignoreInvalidFields = true)
 @Data

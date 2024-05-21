@@ -2,6 +2,9 @@ package com.xj.dynamicthreadpoolspringbootstarter.config;
 
 import com.alibaba.fastjson.JSON;
 import com.xj.dynamicthreadpoolspringbootstarter.domain.model.DynamicThreadPoolService;
+import com.xj.dynamicthreadpoolspringbootstarter.registry.IRegistry;
+import com.xj.dynamicthreadpoolspringbootstarter.registry.redis.RedisRegistry;
+import com.xj.dynamicthreadpoolspringbootstarter.trigger.job.ThreadPoolDataReportJob;
 import jodd.util.StringUtil;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
@@ -27,6 +30,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 @Configuration
 @EnableConfigurationProperties(DynamicThreadPoolAutoProperties.class)
+//定时作业任务注解
 @EnableScheduling
 public class DynamicThreadPoolAutoConfig {
 
@@ -57,6 +61,11 @@ public class DynamicThreadPoolAutoConfig {
         return redissonClient;
     }
 
+    @Bean
+    public IRegistry redisRegistry(RedissonClient redissonClient) {
+        return new RedisRegistry(redissonClient);
+    }
+
 
     @Bean("dynamicThreadPollService")
     public DynamicThreadPoolService dynamicThreadPollService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap){
@@ -65,19 +74,16 @@ public class DynamicThreadPoolAutoConfig {
             applicationName = "缺少的";
             logger.warn("spring.application.name is null, use default applicationName:{}", applicationName);
         }
-        /*Set<String> threadPoolKeys = threadPoolExecutorMap.keySet();
-        for (String threadPoolKey : threadPoolKeys) {
-            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
-            int poolSize = threadPoolExecutor.getPoolSize();
-            int corePoolSize = threadPoolExecutor.getCorePoolSize();
-            BlockingQueue<Runnable> queue = threadPoolExecutor.getQueue();
-            Class<? extends BlockingQueue> aClass = queue.getClass();
-            String simpleName = aClass.getSimpleName();
-            logger.info("动态线程池{}，核心线程数{}，最大线程数{}，队列类型{}，队列大小{}", threadPoolKey, corePoolSize, poolSize, simpleName, queue.size());
-        }*/
         logger.info("动态线程池{}", JSON.toJSONString(threadPoolExecutorMap.keySet()));
 
         return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
+    }
+
+
+    //创建线程池的任务
+    @Bean
+    public ThreadPoolDataReportJob threadPoolDataReportJob(DynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
+        return new ThreadPoolDataReportJob(dynamicThreadPoolService, registry);
     }
 
 }
