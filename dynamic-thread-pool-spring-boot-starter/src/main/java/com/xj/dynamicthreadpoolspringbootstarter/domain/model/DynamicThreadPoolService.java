@@ -69,6 +69,7 @@ public class DynamicThreadPoolService implements IDynamicThreadPoolService {
         if (logger.isDebugEnabled()){
             logger.info("动态线程池,配置查询 应用名:{},线程名:{},池化配置:{}",applicationName,threadPoolName, JSON.toJSONString(threadPoolConfigEntity));
         }
+
         return threadPoolConfigEntity;
     }
 
