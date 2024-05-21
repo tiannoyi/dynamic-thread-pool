@@ -1,6 +1,7 @@
 package com.xj.dynamicthreadpoolspringbootstarter.config;
 
 import com.alibaba.fastjson.JSON;
+import com.xj.dynamicthreadpoolspringbootstarter.domain.model.DynamicThreadPoolService;
 import jodd.util.StringUtil;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
@@ -15,6 +16,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -56,16 +59,25 @@ public class DynamicThreadPoolAutoConfig {
 
 
     @Bean("dynamicThreadPollService")
-    public String dynamicThreadPollService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap){
+    public DynamicThreadPoolService dynamicThreadPollService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap){
         String applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
-        if (StringUtil.isNotBlank(applicationName)){
+        if (StringUtil.isBlank(applicationName)){
             applicationName = "缺少的";
             logger.warn("spring.application.name is null, use default applicationName:{}", applicationName);
         }
-
+        /*Set<String> threadPoolKeys = threadPoolExecutorMap.keySet();
+        for (String threadPoolKey : threadPoolKeys) {
+            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
+            int poolSize = threadPoolExecutor.getPoolSize();
+            int corePoolSize = threadPoolExecutor.getCorePoolSize();
+            BlockingQueue<Runnable> queue = threadPoolExecutor.getQueue();
+            Class<? extends BlockingQueue> aClass = queue.getClass();
+            String simpleName = aClass.getSimpleName();
+            logger.info("动态线程池{}，核心线程数{}，最大线程数{}，队列类型{}，队列大小{}", threadPoolKey, corePoolSize, poolSize, simpleName, queue.size());
+        }*/
         logger.info("动态线程池{}", JSON.toJSONString(threadPoolExecutorMap.keySet()));
 
-        return new String();
+        return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
     }
 
 }
