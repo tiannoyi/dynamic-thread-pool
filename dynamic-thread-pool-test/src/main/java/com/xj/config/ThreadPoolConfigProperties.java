@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @date : 2024/5/20 15:48
  */
 @Data
-@ConfigurationProperties(prefix = "thread.pool.executory.config",ignoreInvalidFields = true)
+@ConfigurationProperties(prefix = "thread.pool.executor.config",ignoreInvalidFields = true)
 public class ThreadPoolConfigProperties {
 
     /** 核心线程数 */
