@@ -16,6 +16,7 @@ import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class DynamicThreadPoolAutoConfig {
 
     private final Logger logger = LoggerFactory.getLogger(DynamicThreadPoolAutoConfig.class);
+
 
     private String applicationName;
 
@@ -84,18 +86,24 @@ public class DynamicThreadPoolAutoConfig {
 
         // 获取缓存数据,设置本地线程池
         Set<String> threadPoolKeys = threadPoolExecutorMap.keySet();
+        DynamicThreadPoolService dynamicThreadPoolService = new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
+
         for (String threadPoolKey : threadPoolKeys) {
             ThreadPoolConfigEntity threadPoolConfigEntity = redissonClient.<ThreadPoolConfigEntity>getBucket(RegistryEnumVO.THREAD_POOL_CONFIG_PARAMETER_LIST_KEY.getKey() + "_" + applicationName + "_" + threadPoolKey).get();
             if (null == threadPoolConfigEntity){
                 continue;
             }
-            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
+            //这里使用接口调用
+            /*ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
             threadPoolExecutor.setCorePoolSize(threadPoolConfigEntity.getCorePoolSize());
-            threadPoolExecutor.setMaximumPoolSize(threadPoolConfigEntity.getMaximumPoolSize());
+            threadPoolExecutor.setMaximumPoolSize(threadPoolConfigEntity.getMaximumPoolSize());*/
+            dynamicThreadPoolService.updateThreadPoolConfig(threadPoolConfigEntity);
+
+
         }
 
 
-        return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
+        return dynamicThreadPoolService;
     }
 
 
