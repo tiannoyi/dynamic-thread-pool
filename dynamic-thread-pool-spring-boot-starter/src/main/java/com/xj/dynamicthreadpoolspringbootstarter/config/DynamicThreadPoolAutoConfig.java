@@ -2,11 +2,15 @@ package com.xj.dynamicthreadpoolspringbootstarter.config;
 
 import com.alibaba.fastjson.JSON;
 import com.xj.dynamicthreadpoolspringbootstarter.domain.model.DynamicThreadPoolService;
+import com.xj.dynamicthreadpoolspringbootstarter.domain.model.entity.ThreadPoolConfigEntity;
+import com.xj.dynamicthreadpoolspringbootstarter.domain.model.valobj.RegistryEnumVO;
 import com.xj.dynamicthreadpoolspringbootstarter.registry.IRegistry;
 import com.xj.dynamicthreadpoolspringbootstarter.registry.redis.RedisRegistry;
 import com.xj.dynamicthreadpoolspringbootstarter.trigger.job.ThreadPoolDataReportJob;
+import com.xj.dynamicthreadpoolspringbootstarter.trigger.listener.ThreadPoolConfigAdjustListener;
 import jodd.util.StringUtil;
 import org.redisson.Redisson;
+import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.config.Config;
@@ -35,6 +39,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class DynamicThreadPoolAutoConfig {
 
     private final Logger logger = LoggerFactory.getLogger(DynamicThreadPoolAutoConfig.class);
+
+    private String applicationName;
 
     @Bean("redissonClient")
     public RedissonClient redissonClient(DynamicThreadPoolAutoProperties properties) {
@@ -68,13 +74,26 @@ public class DynamicThreadPoolAutoConfig {
 
 
     @Bean("dynamicThreadPollService")
-    public DynamicThreadPoolService dynamicThreadPollService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap){
-        String applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
+    public DynamicThreadPoolService dynamicThreadPollService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap,RedissonClient redissonClient){
+        applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
         if (StringUtil.isBlank(applicationName)){
             applicationName = "缺少的";
             logger.warn("spring.application.name is null, use default applicationName:{}", applicationName);
         }
         logger.info("动态线程池{}", JSON.toJSONString(threadPoolExecutorMap.keySet()));
+
+        // 获取缓存数据,设置本地线程池
+        Set<String> threadPoolKeys = threadPoolExecutorMap.keySet();
+        for (String threadPoolKey : threadPoolKeys) {
+            ThreadPoolConfigEntity threadPoolConfigEntity = redissonClient.<ThreadPoolConfigEntity>getBucket(RegistryEnumVO.THREAD_POOL_CONFIG_PARAMETER_LIST_KEY.getKey() + "_" + applicationName + "_" + threadPoolKey).get();
+            if (null == threadPoolConfigEntity){
+                continue;
+            }
+            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
+            threadPoolExecutor.setCorePoolSize(threadPoolConfigEntity.getCorePoolSize());
+            threadPoolExecutor.setMaximumPoolSize(threadPoolConfigEntity.getMaximumPoolSize());
+        }
+
 
         return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
     }
@@ -84,6 +103,26 @@ public class DynamicThreadPoolAutoConfig {
     @Bean
     public ThreadPoolDataReportJob threadPoolDataReportJob(DynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
         return new ThreadPoolDataReportJob(dynamicThreadPoolService, registry);
+    }
+
+
+    @Bean
+    public ThreadPoolConfigAdjustListener threadPoolConfigAdjustListener(DynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
+        return new ThreadPoolConfigAdjustListener(dynamicThreadPoolService, registry);
+    }
+
+
+    /**
+     * 创建线程池配置调整监听器
+     * @param redissonClient
+     * @param threadPoolConfigAdjustListener
+     * @return
+     */
+    @Bean("dynamicThreadPoolRedisTopic")
+    public RTopic threadPoolConfigAdjustListener(RedissonClient redissonClient, ThreadPoolConfigAdjustListener threadPoolConfigAdjustListener){
+        RTopic topic = redissonClient.getTopic(RegistryEnumVO.DYNAMIC_THREAD_POOL_REDIS_TOPIC.getKey() + "_" + applicationName);
+        topic.addListener(ThreadPoolConfigEntity.class, threadPoolConfigAdjustListener);
+        return topic;
     }
 
 }
