@@ -20,3 +20,58 @@ logging:
   level:
     root: info
   config: classpath:logback-spring.xml
+
+
+spring:
+  shardingsphere:
+    mode:
+      type: memory
+    # 是否开启
+    datasource:
+      # 数据源（逻辑名字）
+      names: m1
+      # 配置数据源
+      m1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.108.71.48:3306/test?useSSL=false&autoReconnect=true&characterEncoding=UTF-8&serverTimezone=UTC
+        username: root
+        password: 1347492956
+    # 分片的配置
+    rules:
+      sharding:
+        # 表的分片策略
+        tables:
+          # 逻辑表的名称
+          user:
+            # 数据节点配置，采用Groovy表达式
+            actual-data-nodes: m1.user_$->{0..1}
+            # 配置策略
+            table-strategy:
+              # 用于单分片键的标准分片场景
+              standard:
+                sharding-column: cid
+                # 分片算法名字
+                sharding-algorithm-name: user_inline
+            key-generate-strategy: # 主键生成策略
+              column: cid  # 主键列
+              key-generator-name: snowflake  # 策略算法名称(推荐使用雪花算法)
+        key-generators:
+          snowflake:
+            type: SNOWFLAKE
+        sharding-algorithms:
+          user_inline:
+            type: inline
+            props:
+              algorithm-expression: user_$->{cid % 2}
+    props:
+      # 日志显示具体的SQL
+      sql-show: true
+
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.demo.entity
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射 address_book ---> addressBook
+    map-underscore-to-camel-case: true
